@@ -307,11 +307,8 @@ checkFS() {
     if test "$fsType" != "btrfs"; then
         fsckFlags="-V -a"
     fi
-    if test "@isQuiet@"; then
-        fsck $fsckFlags "$device" > /dev/null
-    else
-        fsck $fsckFlags "$device"
-    fi
+    fsckOutfile=/dev/stdout && test "@isQuiet@" && fsckOutfile=/dev/null
+    fsck $fsckFlags "$device" > $fsckOutfile
     fsckResult=$?
 
     if test $(($fsckResult | 2)) = $fsckResult; then

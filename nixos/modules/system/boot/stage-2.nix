@@ -9,13 +9,7 @@ let
     shellDebug = "${pkgs.bashInteractive}/bin/bash";
     shell = "${pkgs.bash}/bin/bash";
     isExecutable = true;
-
-    # this is copypasta as the first definition in bootStage1 is also
-    # inside a local `let` scope and thus inaccessible
-    isQuiet = any
-      (param: ! isNull (builtins.match "[[:space:]]*quiet[[:space:]]*" param))
-      config.boot.kernelParams;
-
+    isQuiet = config.system.build.bootStage1.isQuiet;
     inherit (config.nix) readOnlyStore;
     inherit (config.networking) useHostResolvConf;
     inherit (config.system.build) earlyMountScript;

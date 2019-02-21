@@ -132,11 +132,8 @@ fi
 # Run the script that performs all configuration activation that does
 # not have to be done at boot time.
 conditionalEcho "running activation script..."
-if test "@isQuiet"; then
-    $systemConfig/activate > /dev/null
-else
-    $systemConfig/activate
-fi
+activationOutfile=/dev/stdout && test "@isQuiet@" && activationOutfile=/dev/null
+$systemConfig/activate > $activationOutfile
 
 
 # Restore the system time from the hardware clock.  We do this after
