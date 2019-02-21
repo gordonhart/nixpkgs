@@ -246,6 +246,8 @@ let
 
     shell = "${extraUtils}/bin/ash";
 
+    kernelParams = config.boot.kernelParams;
+
     isExecutable = true;
 
     postInstall = ''

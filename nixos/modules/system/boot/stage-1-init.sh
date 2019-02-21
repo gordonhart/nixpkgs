@@ -62,10 +62,20 @@ EOF
 trap 'fail' 0
 
 
+# echo command replacement that outputs only if "quiet" is not present
+# in the kernel command line parameters
+conditionalEcho() {
+    # test $(sysctl -n kernel.printk | awk '/[0-7]/ {print $1}') -eq 0 && echo "$@"
+    # test -z "$(cat /proc/cmdline | grep -E ' quiet ?')" && echo "$@"
+    # echo "@kernelParams@"
+    # echo "$@"
+    test -z "$(echo '@kernelParams@' | grep -E 'quiet')" && echo "$@"
+}
+
 # Print a greeting.
-# echo
-# echo "[1;32m<<< NixOS Stage 1 >>>[0m"
-# echo
+conditionalEcho
+conditionalEcho "[1;32m<<< NixOS Stage 1 >>>[0m"
+conditionalEcho
 
 # Make several required directories.
 mkdir -p /etc/udev
@@ -203,7 +213,7 @@ done
 
 # Create device nodes in /dev.
 @preDeviceCommands@
-# echo "running udev..."
+conditionalEcho "running udev..."
 mkdir -p /etc/udev
 ln -sfn @udevRules@ /etc/udev/rules.d
 mkdir -p /dev/.mdadm
@@ -216,7 +226,7 @@ udevadm settle
 @preLVMCommands@
 
 
-# echo "starting device mapper and LVM..."
+conditionalEcho "starting device mapper and LVM..."
 lvm vgchange -ay
 
 if test -n "$debug1devices"; then fail; fi
@@ -259,14 +269,14 @@ checkFS() {
 
     # If we couldn't figure out the FS type, then skip fsck.
     if [ "$fsType" = auto ]; then
-        echo 'cannot check filesystem with type "auto"!'
+        conditionalEcho 'cannot check filesystem with type "auto"!'
         return 0
     fi
 
     # Device might be already mounted manually 
     # e.g. NBD-device or the host filesystem of the file which contains encrypted root fs
     if mount | grep -q "^$device on "; then
-        echo "skip checking already mounted $device"
+        conditionalEcho "skip checking already mounted $device"
         return 0
     fi
 
@@ -284,21 +294,22 @@ checkFS() {
     # Don't run `fsck' if the machine is on battery power.  !!! Is
     # this a good idea?
     if ! onACPower; then
-        echo "on battery power, so no \`fsck' will be performed on \`$device'"
+        conditionalEcho "on battery power, so no \`fsck' will be performed on \`$device'"
         return 0
     fi
 
-    echo "checking $device..."
+    conditionalEcho "checking $device..."
 
+    local fsckVerbosity=$(if test -z "$(echo '@kernelParams@' | grep -E 'quiet')"; then echo "-V"; else echo "-T"; fi)
     fsckFlags=
     if test "$fsType" != "btrfs"; then
-        fsckFlags="-V -a"
+        fsckFlags="$fsckVerbosity -a"
     fi
-    fsck $fsckFlags "$device"
+    fsck $fsckFlags "$device" > /dev/null
     fsckResult=$?
 
     if test $(($fsckResult | 2)) = $fsckResult; then
-        echo "fsck finished, rebooting..."
+        conditionalEcho "fsck finished, rebooting..."
         sleep 3
         reboot -f
     fi
@@ -340,7 +351,7 @@ mountFS() {
     case $options in
         *x-nixos.autoresize*)
             if [ "$fsType" = ext2 -o "$fsType" = ext3 -o "$fsType" = ext4 ]; then
-                echo "resizing $device..."
+                conditionalEcho "resizing $device..."
                 e2fsck -fp "$device"
                 resize2fs "$device"
             fi
@@ -354,7 +365,7 @@ mountFS() {
         done
     fi
 
-    echo "mounting $device on $mountPoint..."
+    conditionalEcho "mounting $device on $mountPoint..."
 
     mkdir -p "/mnt-root$mountPoint"
 
@@ -363,7 +374,7 @@ mountFS() {
     while true; do
         mount "/mnt-root$mountPoint" && break
         if [ "$fsType" != cifs -o "$n" -ge 10 ]; then fail; break; fi
-        echo "retrying..."
+        conditionalEcho "retrying..."
         n=$((n + 1))
     done
 
@@ -377,14 +388,14 @@ mountFS() {
 lustrateRoot () {
     local root="$1"
 
-    echo
-    echo -e "\e[1;33m<<< NixOS is now lustrating the root filesystem (cruft goes to /old-root) >>>\e[0m"
-    echo
+    conditionalEcho
+    conditionalEcho -e "\e[1;33m<<< NixOS is now lustrating the root filesystem (cruft goes to /old-root) >>>\e[0m"
+    conditionalEcho
 
     mkdir -m 0755 -p "$root/old-root.tmp"
 
-    echo
-    echo "Moving impurities out of the way:"
+    conditionalEcho
+    conditionalEcho "Moving impurities out of the way:"
     for d in "$root"/*
     do
         [ "$d" == "$root/nix"          ] && continue
@@ -402,8 +413,8 @@ lustrateRoot () {
 
     exec 4< "$root/old-root/etc/NIXOS_LUSTRATE"
 
-    echo
-    echo "Restoring selected impurities:"
+    conditionalEcho
+    conditionalEcho "Restoring selected impurities:"
     while read -u 4 keeper; do
         dirname="$(dirname "$keeper")"
         mkdir -m 0755 -p "$root/$dirname"
@@ -478,7 +489,7 @@ while read -u 3 mountPoint; do
         # If it doesn't appear, try to mount it anyway (and
         # probably fail).  This is a fallback for non-device "devices"
         # that we don't properly recognise.
-        echo "Timed out waiting for device $device, trying to mount anyway."
+        conditionalEcho "Timed out waiting for device $device, trying to mount anyway."
     fi
 
     # Wait once more for the udev queue to empty, just in case it's
