@@ -20,10 +20,14 @@ for o in $(</proc/cmdline); do
 done
 
 
+conditionalEcho() {
+    ! test "@isQuiet@" && echo "$@"
+}
+
 # Print a greeting.
-echo
-echo -e "\e[1;32m<<< NixOS Stage 2 >>>\e[0m"
-echo
+conditionalEcho
+conditionalEcho -e "\e[1;32m<<< NixOS Stage 2 >>>\e[0m"
+conditionalEcho
 
 
 # Normally, stage 1 mounts the root filesystem read/writable.
@@ -127,8 +131,12 @@ fi
 
 # Run the script that performs all configuration activation that does
 # not have to be done at boot time.
-echo "running activation script..."
-$systemConfig/activate
+conditionalEcho "running activation script..."
+if test "@isQuiet"; then
+    $systemConfig/activate > /dev/null
+else
+    $systemConfig/activate
+fi
 
 
 # Restore the system time from the hardware clock.  We do this after
@@ -158,7 +166,7 @@ exec {logOutFd}>&- {logErrFd}>&-
 
 
 # Start systemd.
-echo "starting systemd..."
+conditionalEcho "starting systemd..."
 PATH=/run/current-system/systemd/lib/systemd:@fsPackagesPath@ \
     LOCALE_ARCHIVE=/run/current-system/sw/lib/locale/locale-archive \
     exec systemd

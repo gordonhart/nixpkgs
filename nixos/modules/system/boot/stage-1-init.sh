@@ -65,11 +65,14 @@ trap 'fail' 0
 # echo command replacement that outputs only if "quiet" is not present
 # in the kernel command line parameters
 conditionalEcho() {
-    # test $(sysctl -n kernel.printk | awk '/[0-7]/ {print $1}') -eq 0 && echo "$@"
+    # both of these do not work because /proc is not mounted before each echo call
     # test -z "$(cat /proc/cmdline | grep -E ' quiet ?')" && echo "$@"
-    # echo "@kernelParams@"
-    # echo "$@"
-    test -z "$(echo '@kernelParams@' | grep -E 'quiet')" && echo "$@"
+    # test $(sysctl -n kernel.printk | awk '/[0-7]/ {print $1}') -eq 0 && echo "$@"
+
+    # this works provided kernelParams is set in stage-1.nix
+    # test -z "$(echo '@kernelParams@' | grep -E 'quiet')" && echo "$@"
+
+    ! test "@isQuiet@" && echo "$@"
 }
 
 # Print a greeting.
@@ -300,12 +303,15 @@ checkFS() {
 
     conditionalEcho "checking $device..."
 
-    local fsckVerbosity=$(if test -z "$(echo '@kernelParams@' | grep -E 'quiet')"; then echo "-V"; else echo "-T"; fi)
     fsckFlags=
     if test "$fsType" != "btrfs"; then
-        fsckFlags="$fsckVerbosity -a"
+        fsckFlags="-V -a"
     fi
-    fsck $fsckFlags "$device" > /dev/null
+    if test "@isQuiet@"; then
+        fsck $fsckFlags "$device" > /dev/null
+    else
+        fsck $fsckFlags "$device"
+    fi
     fsckResult=$?
 
     if test $(($fsckResult | 2)) = $fsckResult; then

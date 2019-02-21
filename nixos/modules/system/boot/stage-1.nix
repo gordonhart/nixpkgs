@@ -246,7 +246,9 @@ let
 
     shell = "${extraUtils}/bin/ash";
 
-    kernelParams = config.boot.kernelParams;
+    isQuiet = any (param: param == "quiet")
+      (map (param: replaceStrings [" "] [""] param)
+        config.boot.kernelParams);
 
     isExecutable = true;
 
