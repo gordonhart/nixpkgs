@@ -63,9 +63,9 @@ trap 'fail' 0
 
 
 # Print a greeting.
-echo
-echo "[1;32m<<< NixOS Stage 1 >>>[0m"
-echo
+# echo
+# echo "[1;32m<<< NixOS Stage 1 >>>[0m"
+# echo
 
 # Make several required directories.
 mkdir -p /etc/udev
@@ -196,14 +196,14 @@ ln -s @modulesClosure@/lib/modules /lib/modules
 ln -s @modulesClosure@/lib/firmware /lib/firmware
 echo @extraUtils@/bin/modprobe > /proc/sys/kernel/modprobe
 for i in @kernelModules@; do
-    echo "loading module $(basename $i)..."
+    # echo "loading module $(basename $i)..."
     modprobe $i
 done
 
 
 # Create device nodes in /dev.
 @preDeviceCommands@
-echo "running udev..."
+# echo "running udev..."
 mkdir -p /etc/udev
 ln -sfn @udevRules@ /etc/udev/rules.d
 mkdir -p /dev/.mdadm
@@ -216,7 +216,7 @@ udevadm settle
 @preLVMCommands@
 
 
-echo "starting device mapper and LVM..."
+# echo "starting device mapper and LVM..."
 lvm vgchange -ay
 
 if test -n "$debug1devices"; then fail; fi
